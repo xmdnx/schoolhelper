@@ -1,18 +1,46 @@
 import config
 import telebot, sys, time, json
+from datetime import datetime
 from telebot import types
 
 # useful functions
 def debug(text, level=1):
     if config.debug:
-        print("#" + (" " * level) + text)
+        print("#" + (" " * level) + str(text))
 
 def get_class_by_id(id):
     global data
-    if id in data["people"]:
-        result = data["people"][id]
+    debug(data["people"])
+    debug(str(id))
+    debug(str(id) in data["people"])
+    debug(id in data["people"])
+    if str(id) in data["people"]:
+        result = data["people"][str(id)]
     else:
         result = str(None)
+    return result
+
+def get_today_timetable_by_class(classroom):
+    global data
+    if not classroom in data["classes"]:
+        return("Вы не подключены к классу. Обратитесь к админу класса, выберите класс в боте, или напишите в поддержку.")
+    weekday = datetime.now().weekday()
+    result = "Расписание на "
+    match weekday:
+        case 0:
+            result += "понедельник"
+        case 1:
+            result += "вторник"
+        case 2:
+            result += "среду"
+        case 3:
+            result += "четверг"
+        case 4:
+            result += "пятницу"
+    result += "\n\n"
+    lessons_today = len(data["classes"][classroom]["timetable"][weekday])
+    for i in range(1, lessons_today + 1):
+        result += str(i) + ") " + data["classes"][classroom]["timetable"][weekday][i - 1] + "\n"
     return result
 
 # set up
@@ -33,10 +61,9 @@ debug("Data file closed", 3)
 @bot.inline_handler(lambda query: len(query.query) == 0)
 def default_query(inline_query):
     try:
-        debug(str(inline_query))
         # r = types.InlineQueryResultArticle('1', 'Д/З на завтра', types.InputTextMessageContent('Здесь будет написано дз на завтра'))
         r = types.InlineQueryResultArticle('1', 'Ваш класс', types.InputTextMessageContent('ID вашего класса: ' + get_class_by_id(inline_query.from_user.id)))
-        r1 = types.InlineQueryResultArticle('2', 'Расписание на сегодня', types.InputTextMessageContent('Здесь будет расписание на сегодня'))
+        r1 = types.InlineQueryResultArticle('2', 'Расписание на сегодня', types.InputTextMessageContent(get_today_timetable_by_class(get_class_by_id(inline_query.from_user.id))))
         bot.answer_inline_query(inline_query.id, [r, r1])
     except Exception as e:
         print("exception in inline_handler: " + e)
