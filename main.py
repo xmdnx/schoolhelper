@@ -9,10 +9,10 @@ def debug(text, level=1):
 
 def get_class_by_id(id):
     global data
-    try:
-        result = data["people"][str(id)]
-    except:
-        result = None
+    if id in data["people"]:
+        result = data["people"][id]
+    else:
+        result = str(None)
     return result
 
 # set up
