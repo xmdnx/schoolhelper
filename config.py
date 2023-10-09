@@ -19,7 +19,9 @@ datafile = "data.json"
 token = ""  # set your Telegram bot token here
 
 # check token
-if token == "":
-    debugprint("Telegram token unset in config.py")
-    token = input("Paste Telegram bot token here: ")
-debugprint("Telegram token set")
+def check_token():
+    global token
+    if token == "":
+        debugprint("Telegram token unset in config.py")
+        token = input("Paste Telegram bot token here: ")
+    debugprint("Telegram token set")
