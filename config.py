@@ -16,7 +16,7 @@ debug = True
 datafile = "data.json"
 
 # telegram bot settings
-token = "INSERT_YOUR_TOKEN_HERE"  # set your Telegram bot token here
+token = ""  # set your Telegram bot token here
 
 # check token
 if token == "":
