@@ -9,22 +9,22 @@ def debug(text, level=1):
         print("#" + (" " * level) + str(text))
 
 def get_class_by_id(id):
-    global data
-    debug(data["people"])
+    global people
+    debug(people["people"])
     debug(str(id))
-    debug(str(id) in data["people"])
-    debug(id in data["people"])
-    if str(id) in data["people"]:
-        result = data["people"][str(id)]
+    debug(str(id) in people["people"])
+    debug(id in people["people"])
+    if str(id) in people["people"]:
+        result = people["people"][str(id)]
     else:
         result = str(None)
     return result
 
-def get_today_timetable_by_class(classroom):
-    global data
-    if not classroom in data["classes"]:
+def get_today_timetable_by_class(classroom, plusdays = 0):
+    global classes
+    if not classroom in classes:
         return("Вы не подключены к классу. Обратитесь к админу класса, выберите класс в боте, или напишите в поддержку.")
-    weekday = datetime.now().weekday()
+    weekday = datetime.now().weekday() + plusdays
     result = "Расписание на "
     match weekday:
         case 0:
@@ -38,9 +38,9 @@ def get_today_timetable_by_class(classroom):
         case 4:
             result += "пятницу"
     result += "\n\n"
-    lessons_today = len(data["classes"][classroom]["timetable"][weekday])
+    lessons_today = len(classes[classroom]["timetable"][weekday])
     for i in range(1, lessons_today + 1):
-        result += str(i) + ") " + data["classes"][classroom]["timetable"][weekday][i - 1] + "\n"
+        result += str(i) + ") " + classes[classroom]["timetable"][weekday][i - 1] + "\n"
     return result
 
 # set up
@@ -49,13 +49,22 @@ config.check_token()
 debug("Token checked!", 2)
 bot = telebot.TeleBot(config.token)
 debug("TeleBot initialized!", 2)
-debug("Fetching data.json", 2)
-datafile = open("data.json", encoding="utf-8")
-debug("Opened data.json as data file", 3)
-data = json.load(datafile)
-debug("Loaded data from data file to data", 3)
-datafile.close()
-debug("Data file closed", 3)
+
+debug("Fetching classes.json", 2)
+classes_file = open("classes.json", encoding="utf-8")
+debug("Opened classes.json as classes file", 3)
+classes = json.load(classes_file)
+debug("Loaded classes from classes.json", 3)
+classes_file.close()
+debug("classes.json closed", 3)
+
+debug("Fetching people.json", 2)
+people_file = open("people.json", encoding="utf-8")
+debug("Opened people.json as people file", 3)
+people = json.load(people_file)
+debug("Loaded people from people.json", 3)
+people_file.close()
+debug("people.json closed", 3)
 
 # inline handler
 @bot.inline_handler(lambda query: len(query.query) == 0)
