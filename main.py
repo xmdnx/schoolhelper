@@ -10,12 +10,8 @@ def debug(text, level=1):
 
 def get_class_by_id(id):
     global people
-    debug(people["people"])
-    debug(str(id))
-    debug(str(id) in people["people"])
-    debug(id in people["people"])
-    if str(id) in people["people"]:
-        result = people["people"][str(id)]
+    if str(id) in people:
+        result = people[str(id)]
     else:
         result = str(None)
     return result
@@ -73,6 +69,7 @@ def default_query(inline_query):
         # r = types.InlineQueryResultArticle('1', 'Д/З на завтра', types.InputTextMessageContent('Здесь будет написано дз на завтра'))
         r = types.InlineQueryResultArticle('1', 'Ваш класс', types.InputTextMessageContent('ID вашего класса: ' + get_class_by_id(inline_query.from_user.id)))
         r1 = types.InlineQueryResultArticle('2', 'Расписание на сегодня', types.InputTextMessageContent(get_today_timetable_by_class(get_class_by_id(inline_query.from_user.id))))
+        r2 = types.InlineQueryResultArticle('3', 'Расписание на завтра', types.InputTextMessageContent(get_today_timetable_by_class(get_class_by_id(inline_query.from_user.id), 1)))
         bot.answer_inline_query(inline_query.id, [r, r1])
     except Exception as e:
         print("exception in inline_handler: " + e)
