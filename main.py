@@ -70,7 +70,7 @@ def default_query(inline_query):
         r = types.InlineQueryResultArticle('1', 'Ваш класс', types.InputTextMessageContent('ID вашего класса: ' + get_class_by_id(inline_query.from_user.id)))
         r1 = types.InlineQueryResultArticle('2', 'Расписание на сегодня', types.InputTextMessageContent(get_today_timetable_by_class(get_class_by_id(inline_query.from_user.id))))
         r2 = types.InlineQueryResultArticle('3', 'Расписание на завтра', types.InputTextMessageContent(get_today_timetable_by_class(get_class_by_id(inline_query.from_user.id), 1)))
-        bot.answer_inline_query(inline_query.id, [r, r1])
+        bot.answer_inline_query(inline_query.id, [r, r1, r2])
     except Exception as e:
         print("exception in inline_handler: " + e)
 
