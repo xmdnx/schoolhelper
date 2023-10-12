@@ -205,7 +205,7 @@ def handle_admin_command(message):
         return
     command = message.text.replace("!", "")
     if "set_homework" in command:
-        command_spilt = command.split(" ")
+        command_split = command.split(" ")
         if not command_split[1] in create_lesson_list_by_id(message.from_user.id):
             bot.reply_to(message, "Unknown lesson (not found in your class)")
             return
