@@ -60,6 +60,59 @@ def get_lessons_quantity_by_class(classroom, weekday = datetime.now().weekday())
     global classes
     return len(classes[classroom]["timetable"][weekday])
 
+def create_lesson_list_by_class(classroom):
+    global classes
+    result = []
+    quantity = get_lessons_quantity_by_class(classroom, 0) + get_lessons_quantity_by_class(classroom, 1) + get_lessons_quantity_by_class(classroom, 2) + get_lessons_quantity_by_class(classroom, 3) + get_lessons_quantity_by_class(classroom, 4)
+    for i in range(0, 5):
+        today_timetable = get_array_timetable_by_class(classroom, i)
+        for j in range(len(today_timetable)):
+            if not today_timetable[j] in result:
+                result.append(today_timetable[j])
+    return result
+
+def create_lesson_list_by_id(id):
+    return create_lesson_list_by_class(get_class_by_id(id))
+
+def get_current_homework_by_class(classroom):
+    global homework
+    return homework[classroom]
+
+def get_current_homework_by_id(id):
+    return get_current_homework_by_class(get_class_by_id(id))
+
+def record_homework_file(jsondata):
+    debug("Writing homework file...")
+    homework_file = open("homework.json", encoding="utf-8")
+    debug("Opened homework.json as homework file", 2)
+    json.dump(jsondata, homework_file)
+    debug("Wrote jsondata to homework.json", 2)
+    homework_file.close()
+    debug("homework.json closed", 2)
+
+def set_current_homework_by_class(classroom, lesson, task):
+    global homework
+    full_current_json = homework
+    full_current_json[classroom][lesson] = task
+    homework = full_current_json
+    record_homework_file(full_current_json)
+
+def set_current_homework_by_id(id, lesson, task):
+    set_current_homework_by_class(get_class_by_id(id), lesson, task)
+
+def get_formatted_homework_by_class(classroom):
+    global homework
+    class_homework = homework[classroom]
+    lessons = list(mydict.keys())
+    result = ""
+    for i in range(0, len(lessons)):
+        result += lessons[i] + ") " + class_homework[lessons[i]] + "\n"
+    return result
+
+def get_formatted_homework_by_id(id):
+    return get_formatted_homework_by_class(get_class_by_id(id))
+
+
 # set up
 debug("Started setup")
 config.check_token()
@@ -83,7 +136,15 @@ debug("Loaded people from people.json", 3)
 people_file.close()
 debug("people.json closed", 3)
 
-# empty inline handler
+debug("Fetching homework.json", 2)
+homework_file = open("homework.json", encoding="utf-8")
+debug("Opened homework.json as homework file", 3)
+homework = json.load(homework_file)
+debug("Loaded homework from homework.json", 3)
+homework_file.close()
+debug("homework.json closed", 3)
+
+# inline handlers
 @bot.inline_handler(lambda query: len(query.query) == 0)
 def default_query(inline_query):
     try:
@@ -95,7 +156,6 @@ def default_query(inline_query):
     except Exception as e:
         print("exception in inline_handler: " + e)
 
-# 
 @bot.inline_handler(lambda query: len(query.query) == 1)
 def default_query(inline_query):
     try:
@@ -121,13 +181,47 @@ def default_query(inline_query):
     except Exception as e:
         print("exception in inline_handler: " + e)
 
+@bot.inline_handler(lambda query: query.query.startswith("!"))
+def default_query(inline_query):
+    try:
+        if not inline_query.from_user.id in config.admins:
+            bot.answer_inline_query(inline_query.id, [types.InlineQueryResultArticle('1', 'No rights', types.InputTextMessageContent("You have no rights to use this command"))])
+            break
+        request = inline_query.query.replace("!", "")
+        answers = []
+        if (request == "lessons_list"):
+            answers.append(types.InlineQueryResultArticle('1', 'Lessons list for user class', types.InputTextMessageContent(str(create_lesson_list_by_class(get_class_by_id(inline_query.from_user.id))))))
+        if (request == "homework_list"):
+            answers.append(types.InlineQueryResultArticle('2', 'Homework list for user class today', types.InputTextMessageContent(get_formatted_homework_by_id(inline_query.from_user.id))))
+        bot.answer_inline_query(inline_query.id, answers, cache_time=0)
+    except Exception as e:
+        print("exception in inline_handler: " + e)
+
+# direct message handlers
+@bot.message_handler(lambda message: message.text.startswith("!"))
+def handle_admin_command(message):
+    if not message.from_user.id in config.admins:
+        bot.reply_to(message, "You have no rights to use this command")
+        break
+    command = message.text.replace("!", "")
+    if "set_homework" in command:
+        command_spilt = command.split(" ")
+        if not command_split[1] in create_lesson_list_by_id(message.from_user.id):
+            bot.reply_to(message, "Unknown lesson (not found in your class)")
+            break
+        lesson = command_split[1]
+        command_split.pop(0)
+        command_split.pop(1)
+        hw = command_split.join(" ")
+        result = get_current_homework_by_id(message.from_user.id)
+        result[lesson] = hw
+
 
 # main loop
 def main_loop():
     bot.infinity_polling()
     while 1:
         time.sleep(3)
-
 
 if __name__ == '__main__':
     try:
