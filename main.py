@@ -83,9 +83,9 @@ def get_current_homework_by_id(id):
 
 def record_homework_file(jsondata):
     debug("Writing homework file...")
-    homework_file = open("homework.json", encoding="utf-8")
+    homework_file = open("homework.json", "r+", encoding="utf-8")
     debug("Opened homework.json as homework file", 2)
-    json.dump(jsondata, homework_file)
+    json.dump(jsondata, homework_file, ensure_ascii=False)
     debug("Wrote jsondata to homework.json", 2)
     homework_file.close()
     debug("homework.json closed", 2)
@@ -103,14 +103,44 @@ def set_current_homework_by_id(id, lesson, task):
 def get_formatted_homework_by_class(classroom):
     global homework
     class_homework = homework[classroom]
-    lessons = list(mydict.keys())
-    result = ""
+    lessons = list(class_homework.keys())
+    result = "Всё ДЗ:\n\n"
     for i in range(0, len(lessons)):
-        result += lessons[i] + ") " + class_homework[lessons[i]] + "\n"
+        result += lessons[i] + ": " + class_homework[lessons[i]] + "\n"
     return result
 
 def get_formatted_homework_by_id(id):
     return get_formatted_homework_by_class(get_class_by_id(id))
+
+def get_formatted_day_homework_by_class(classroom, weekday = datetime.now().weekday()):
+    global homework
+    class_homework = homework[classroom]
+    timetable = get_array_timetable_by_class(classroom, weekday)
+    lessons = get_lessons_quantity_by_class(classroom, weekday)
+    result = "ДЗ на "
+    match weekday:
+        case 0:
+            result += "понедельник"
+        case 1:
+            result += "вторник"
+        case 2:
+            result += "среду"
+        case 3:
+            result += "четверг"
+        case 4:
+            result += "пятницу"
+    result += "\n\n"
+    for i in range(0, lessons):
+        if timetable[i] in list(class_homework.keys()):
+            result += timetable[i] + ": " + class_homework[timetable[i]] + "\n"
+    return result
+
+def is_int(var):
+    try:
+        a = int(var)
+        return True
+    except ValueError:
+        return False
 
 
 # set up
@@ -152,11 +182,13 @@ def default_query(inline_query):
         # r = types.InlineQueryResultArticle('1', 'Ваш класс', types.InputTextMessageContent('ID вашего класса: ' + get_class_by_id(inline_query.from_user.id)))
         r1 = types.InlineQueryResultArticle('1', 'Расписание на сегодня', types.InputTextMessageContent(get_timetable_by_class(get_class_by_id(inline_query.from_user.id))))
         r2 = types.InlineQueryResultArticle('2', 'Расписание на завтра', types.InputTextMessageContent(get_timetable_by_class(get_class_by_id(inline_query.from_user.id), datetime.now().weekday() + 1)))
-        bot.answer_inline_query(inline_query.id, [r1, r2], cache_time=0)
+        r3 = types.InlineQueryResultArticle('3', 'ДЗ на сегодня', types.InputTextMessageContent(get_formatted_day_homework_by_class(get_class_by_id(inline_query.from_user.id))))
+        r4 = types.InlineQueryResultArticle('4', 'ДЗ на завтра', types.InputTextMessageContent(get_formatted_day_homework_by_class(get_class_by_id(inline_query.from_user.id), datetime.now().weekday() + 1)))
+        bot.answer_inline_query(inline_query.id, [r1, r2, r3, r4], cache_time=0)
     except Exception as e:
         print("exception in inline_handler: " + e)
 
-@bot.inline_handler(lambda query: len(query.query) == 1)
+@bot.inline_handler(lambda query: len(query.query) == 1 and is_int(query.query))
 def default_query(inline_query):
     try:
         num = int(inline_query.query)
@@ -177,6 +209,20 @@ def default_query(inline_query):
                 case 5:
                     result += "пятницу"
             answers.append(types.InlineQueryResultArticle('2', result, types.InputTextMessageContent(get_timetable_by_class(get_class_by_id(inline_query.from_user.id), num - 1))))
+
+            result = "ДЗ на "
+            match num:
+                case 1:
+                    result += "понедельник"
+                case 2:
+                    result += "вторник"
+                case 3:
+                    result += "среду"
+                case 4:
+                    result += "четверг"
+                case 5:
+                    result += "пятницу"
+            answers.append(types.InlineQueryResultArticle('3', result, types.InputTextMessageContent(get_formatted_day_homework_by_class(get_class_by_id(inline_query.from_user.id), num - 1))))
         bot.answer_inline_query(inline_query.id, answers, cache_time=0)
     except Exception as e:
         print("exception in inline_handler: " + e)
@@ -210,11 +256,9 @@ def handle_admin_command(message):
             bot.reply_to(message, "Unknown lesson (not found in your class)")
             return
         lesson = command_split[1]
-        command_split.pop(0)
-        command_split.pop(1)
-        hw = command_split.join(" ")
-        result = get_current_homework_by_id(message.from_user.id)
-        result[lesson] = hw
+        hw = command.partition(" ")[2].partition(" ")[2]
+        set_current_homework_by_id(message.from_user.id, lesson, hw)
+        bot.reply_to(message, lesson + " set to " + hw)
 
 
 # main loop
