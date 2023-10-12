@@ -198,7 +198,7 @@ def default_query(inline_query):
         print("exception in inline_handler: " + e)
 
 # direct message handlers
-@bot.message_handler(lambda message: message.text.startswith("!"))
+@bot.message_handler(func=lambda message: message.text.startswith("!"))
 def handle_admin_command(message):
     if not message.from_user.id in config.admins:
         bot.reply_to(message, "You have no rights to use this command")
