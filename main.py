@@ -186,7 +186,7 @@ def default_query(inline_query):
     try:
         if not inline_query.from_user.id in config.admins:
             bot.answer_inline_query(inline_query.id, [types.InlineQueryResultArticle('1', 'No rights', types.InputTextMessageContent("You have no rights to use this command"))])
-            break
+            return
         request = inline_query.query.replace("!", "")
         answers = []
         if (request == "lessons_list"):
@@ -202,13 +202,13 @@ def default_query(inline_query):
 def handle_admin_command(message):
     if not message.from_user.id in config.admins:
         bot.reply_to(message, "You have no rights to use this command")
-        break
+        return
     command = message.text.replace("!", "")
     if "set_homework" in command:
         command_spilt = command.split(" ")
         if not command_split[1] in create_lesson_list_by_id(message.from_user.id):
             bot.reply_to(message, "Unknown lesson (not found in your class)")
-            break
+            return
         lesson = command_split[1]
         command_split.pop(0)
         command_split.pop(1)
