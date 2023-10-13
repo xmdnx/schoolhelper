@@ -56,6 +56,10 @@ def get_array_timetable_by_class(classroom, weekday = datetime.now().weekday()):
         result.append(classes[classroom]["timetable"][weekday][i - 1])
     return result
 
+def get_workdays_by_class(classroom, weekday = datetime.now().weekday()):
+    global classes
+    return len(get_array_timetable_by_class(classroom, weekday)) - 1
+
 def get_lessons_quantity_by_class(classroom, weekday = datetime.now().weekday()):
     global classes
     return len(classes[classroom]["timetable"][weekday])
@@ -85,6 +89,7 @@ def record_homework_file(jsondata):
     debug("Writing homework file...")
     homework_file = open("homework.json", "r+", encoding="utf-8")
     debug("Opened homework.json as homework file", 2)
+    homework_file.truncate(0)
     json.dump(jsondata, homework_file, ensure_ascii=False)
     debug("Wrote jsondata to homework.json", 2)
     homework_file.close()
@@ -135,6 +140,38 @@ def get_formatted_day_homework_by_class(classroom, weekday = datetime.now().week
             result += timetable[i] + ": " + class_homework[timetable[i]] + "\n"
     return result
 
+def clear_homework_by_admin_id(id):
+    debug("Clearing homework...")
+    global homework
+    full_current_json = homework
+    clear_class = get_class_by_admin_id(id)
+    full_current_json[clear_class] = {}
+    homework = full_current_json
+    record_homework_file(full_current_json)
+
+def get_class_by_admin_id(id):
+    debug("Getting class by admin id...")
+    global classes
+    all_classes = list(classes.keys())
+    debug("All classes:", 2)
+    debug(all_classes, 3)
+    for i in range(0, len(all_classes)):
+        debug(classes[all_classes[i]]["admins"], 2)
+        if str(id) in classes[all_classes[i]]["admins"]:
+            return all_classes[i]
+    return ""
+
+def is_registered_class(classroom):
+    global classes
+    return classroom in list(classes.keys())
+
+def all_homework_markup():
+    markup = types.InlineKeyboardMarkup()
+    markup.row_width = 1
+    markup.add(
+        types.InlineKeyboardButton("🗑️ Очистить", callback_data="clear_homework"))
+    return markup
+
 def is_int(var):
     try:
         a = int(var)
@@ -178,13 +215,14 @@ debug("homework.json closed", 3)
 @bot.inline_handler(lambda query: len(query.query) == 0)
 def default_query(inline_query):
     try:
-        # r = types.InlineQueryResultArticle('1', 'Д/З на завтра', types.InputTextMessageContent('Здесь будет написано дз на завтра'))
-        # r = types.InlineQueryResultArticle('1', 'Ваш класс', types.InputTextMessageContent('ID вашего класса: ' + get_class_by_id(inline_query.from_user.id)))
-        r1 = types.InlineQueryResultArticle('1', 'Расписание на сегодня', types.InputTextMessageContent(get_timetable_by_class(get_class_by_id(inline_query.from_user.id))))
-        r2 = types.InlineQueryResultArticle('2', 'Расписание на завтра', types.InputTextMessageContent(get_timetable_by_class(get_class_by_id(inline_query.from_user.id), datetime.now().weekday() + 1)))
-        r3 = types.InlineQueryResultArticle('3', 'ДЗ на сегодня', types.InputTextMessageContent(get_formatted_day_homework_by_class(get_class_by_id(inline_query.from_user.id))))
-        r4 = types.InlineQueryResultArticle('4', 'ДЗ на завтра', types.InputTextMessageContent(get_formatted_day_homework_by_class(get_class_by_id(inline_query.from_user.id), datetime.now().weekday() + 1)))
-        bot.answer_inline_query(inline_query.id, [r1, r2, r3, r4], cache_time=0)
+        answers = []
+        if datetime.now().weekday() in range(0, get_workdays_by_class(get_class_by_id(inline_query.from_user.id))):
+            answers.append(types.InlineQueryResultArticle('1', 'Расписание на сегодня', types.InputTextMessageContent(get_timetable_by_class(get_class_by_id(inline_query.from_user.id)))))
+            answers.append(types.InlineQueryResultArticle('3', 'ДЗ на сегодня', types.InputTextMessageContent(get_formatted_day_homework_by_class(get_class_by_id(inline_query.from_user.id)))))
+        if datetime.now().weekday() + 1 in range(0, get_workdays_by_class(get_class_by_id(inline_query.from_user.id))):
+            answers.append(types.InlineQueryResultArticle('2', 'Расписание на завтра', types.InputTextMessageContent(get_timetable_by_class(get_class_by_id(inline_query.from_user.id), datetime.now().weekday() + 1))))
+            answers.append(types.InlineQueryResultArticle('4', 'ДЗ на завтра', types.InputTextMessageContent(get_formatted_day_homework_by_class(get_class_by_id(inline_query.from_user.id), datetime.now().weekday() + 1))))
+        bot.answer_inline_query(inline_query.id, answers, cache_time=0)
     except Exception as e:
         print("exception in inline_handler: " + e)
 
@@ -260,8 +298,25 @@ def handle_admin_command(message):
         set_current_homework_by_id(message.from_user.id, lesson, hw)
         bot.reply_to(message, lesson + " set to " + hw)
 
+@bot.message_handler(commands=["homework"])
+def handle_homework(message):
+    if get_class_by_admin_id(message.from_user.id) == "":
+        bot.reply_to(message, "Вы не являетесь админом ни одного из зарегистрированных классов!")
+        return
+    bot.send_message(message.from_user.id, get_formatted_homework_by_id(message.from_user.id), reply_markup=all_homework_markup())
+    
+# callback handlers
+@bot.callback_query_handler(func=lambda call: True)
+def callback_query(call):
+    # call.data
+    if get_class_by_admin_id(call.from_user.id) != None and call.data == "clear_homework":
+        clear_homework_by_admin_id(call.from_user.id)
+        bot.answer_callback_query(call.id, "✅ ДЗ очищено!")
 
 # main loop
+for i in range(len(config.admins)):
+    bot.send_message(config.admins[i], "Bot started!")
+
 def main_loop():
     bot.infinity_polling()
     while 1:
