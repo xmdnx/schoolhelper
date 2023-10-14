@@ -153,13 +153,9 @@ dmypy.json
 cython_debug/
 
 # custom files
-config_copy.py
 config.py
-classes_copy.json
 classes.json
-people_copy.json
 people.json
-homework_copy.json
 homework.json
 
 
