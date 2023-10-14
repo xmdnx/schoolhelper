@@ -2,7 +2,7 @@ import config
 import telebot, sys, time, json
 from datetime import datetime
 from uuid import *
-from telebot import types
+from telebot import types, util
 
 # useful functions
 def debug(text, level=1):
@@ -56,9 +56,9 @@ def get_array_timetable_by_class(classroom, weekday = datetime.now().weekday()):
         result.append(classes[classroom]["timetable"][weekday][i - 1])
     return result
 
-def get_workdays_by_class(classroom, weekday = datetime.now().weekday()):
+def get_workdays_by_class(classroom):
     global classes
-    return len(get_array_timetable_by_class(classroom, weekday)) - 1
+    return len(classes[classroom]["timetable"]) - 1
 
 def get_lessons_quantity_by_class(classroom, weekday = datetime.now().weekday()):
     global classes
@@ -67,8 +67,7 @@ def get_lessons_quantity_by_class(classroom, weekday = datetime.now().weekday())
 def create_lesson_list_by_class(classroom):
     global classes
     result = []
-    quantity = get_lessons_quantity_by_class(classroom, 0) + get_lessons_quantity_by_class(classroom, 1) + get_lessons_quantity_by_class(classroom, 2) + get_lessons_quantity_by_class(classroom, 3) + get_lessons_quantity_by_class(classroom, 4)
-    for i in range(0, 5):
+    for i in range(0, get_workdays_by_class(classroom)):
         today_timetable = get_array_timetable_by_class(classroom, i)
         for j in range(len(today_timetable)):
             if not today_timetable[j] in result:
@@ -101,6 +100,16 @@ def set_current_homework_by_class(classroom, lesson, task):
     full_current_json[classroom][lesson] = task
     homework = full_current_json
     record_homework_file(full_current_json)
+
+def format_homework(classroom, text):
+    global classes
+    lessons = create_lesson_list_by_class(classroom)
+    result = []
+    for i in range(len(lessons)):
+        if lessons[i] in text:
+            result.append(lessons[i])
+            result.append(text.replace(lessons[i] + " ", "").replace("/add ", ""))
+    return result
 
 def set_current_homework_by_id(id, lesson, task):
     set_current_homework_by_class(get_class_by_id(id), lesson, task)
@@ -161,6 +170,10 @@ def get_class_by_admin_id(id):
             return all_classes[i]
     return ""
 
+def get_admins_of_class(classroom):
+    global classes
+    return classes[classroom]["admins"]
+
 def is_registered_class(classroom):
     global classes
     return classroom in list(classes.keys())
@@ -172,13 +185,31 @@ def all_homework_markup():
         types.InlineKeyboardButton("🗑️ Очистить", callback_data="clear_homework"))
     return markup
 
+def homework_request_markup(request):
+    markup = types.InlineKeyboardMarkup()
+    markup.row_width = 2
+    markup.add(
+        types.InlineKeyboardButton("❌ Отклонить", callback_data="decline_" + request),
+        types.InlineKeyboardButton("✅ Принять", callback_data="accept_" + request)
+    )
+    return markup
+
 def is_int(var):
     try:
         a = int(var)
         return True
     except ValueError:
         return False
+    
+def get_hw_request_by_uuid(uid):
+    global hw_requests
+    return hw_requests[uid]
 
+def new_hw_request(classroom, lesson, task):
+    global hw_requests
+    uid = str(uuid4())
+    hw_requests[uid] = [classroom, lesson, task]
+    return uid
 
 # set up
 debug("Started setup")
@@ -211,6 +242,25 @@ debug("Loaded homework from homework.json", 3)
 homework_file.close()
 debug("homework.json closed", 3)
 
+hw_requests = {}
+'''
+each request has uuid generated with uuid4
+
+to get array use get_hw_request_by_uuid(<uuid here>)
+
+get_hw_request_by_uuid(uuid)[0] = classroom
+get_hw_request_by_uuid(uuid)[1] = lesson
+get_hw_request_by_uuid(uuid)[2] = task
+
+structure example:
+
+hw_requests = {
+    "uuid4": [
+        "classroom", "lesson", "task"
+    ]
+}
+'''
+
 # inline handlers
 @bot.inline_handler(lambda query: len(query.query) == 0)
 def default_query(inline_query):
@@ -231,9 +281,9 @@ def default_query(inline_query):
     try:
         num = int(inline_query.query)
         answers = []
-        if (num in range(1, get_lessons_quantity_by_class(get_class_by_id(inline_query.from_user.id)) + 1)):
+        if (num in range(1, get_workdays_by_class(get_class_by_id(inline_query.from_user.id)) + 1)) and (datetime.now().weekday() in range(0, get_workdays_by_class(get_class_by_id(inline_query.from_user.id)) + 1)):
             answers.append(types.InlineQueryResultArticle('1', str(num) + ' урок сегодня', types.InputTextMessageContent(get_array_timetable_by_class(get_class_by_id(inline_query.from_user.id))[num - 1])))
-        if (num in range(0, 6)):
+        if (num in range(1, get_workdays_by_class(get_class_by_id(inline_query.from_user.id)) + 1)):
             result = "Расписание на "
             match num:
                 case 1:
@@ -304,6 +354,22 @@ def handle_homework(message):
         bot.reply_to(message, "Вы не являетесь админом ни одного из зарегистрированных классов!")
         return
     bot.send_message(message.from_user.id, get_formatted_homework_by_id(message.from_user.id), reply_markup=all_homework_markup())
+
+@bot.message_handler(func=lambda message: message.text.startswith("/add"))
+def handle_homework_report(message):
+    debug("recieved /add")
+    report_text = message.text.replace("/add ", "")
+    if report_text == "":
+        text = "Команда /add используется для добавления недобавленного или неправильного ДЗ.\n\nИспользование:\n/add [предмет] [задание]"
+        bot.reply_to(message, text)
+        return
+    if get_class_by_admin_id(message.from_user.id) == "":
+        user_class = get_class_by_id(message.from_user.id)
+        hw = format_homework(user_class, message.text)
+        if (hw != []):
+            for i in range(0, len(get_admins_of_class(user_class))):
+                request = new_hw_request(user_class, hw[0], hw[1])
+                bot.send_message(get_admins_of_class(user_class)[i], "Запрос на добавление ДЗ:\n\n" + get_hw_request_by_uuid(request)[1] + ": " + get_hw_request_by_uuid(request)[2], reply_markup=homework_request_markup(request))
     
 # callback handlers
 @bot.callback_query_handler(func=lambda call: True)
@@ -312,6 +378,11 @@ def callback_query(call):
     if get_class_by_admin_id(call.from_user.id) != None and call.data == "clear_homework":
         clear_homework_by_admin_id(call.from_user.id)
         bot.answer_callback_query(call.id, "✅ ДЗ очищено!")
+    if call.data.startswith("accept_"):
+        request_uuid = call.data.replace("accept_", "")
+        request = get_hw_request_by_uuid(request_uuid)
+        set_current_homework_by_class(get_class_by_admin_id(call.from_user.id), request[1], request[2])
+        bot.answer_callback_query(call.id, "✅ Запрос принят!")
 
 # main loop
 for i in range(len(config.admins)):
