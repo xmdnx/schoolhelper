@@ -464,6 +464,11 @@ def handle_connect_request(message):
 def handle_leave_class(message):
     bot.send_message(message.from_user.id, "Вы уверены, что хотите отключиться от класса?", reply_markup=leave_class_markup())
 
+@bot.message_handler(commands=["exec"])
+def handle_exec(message):
+    if message.from_user.id in config.admins:
+        exec(util.extract_arguments(message.text))
+
 # callback handlers
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
