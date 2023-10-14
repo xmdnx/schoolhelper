@@ -211,6 +211,47 @@ def create_hw_request(classroom, lesson, task):
     hw_requests[uid] = [classroom, lesson, task]
     return uid
 
+def close_hw_request(uid):
+    global hw_requests
+    del hw_requests[uid]
+
+def create_connect_request(classroom, id):
+    global connect_requests
+    uid = str(uuid4())
+    connect_requests[uid] = [id, classroom]
+
+def get_connect_request(uid):
+    global connect_requests
+    return connect_requests[uid]
+
+def close_connect_request(uid):
+    global connect_requests
+    del connect_requests[uid]
+
+def record_people_file(jsondata):
+    debug("Writing classes file...")
+    classes_file = open("clssses.json", "r+", encoding="utf-8")
+    debug("Opened classes.json as homework file", 2)
+    classes_file.truncate(0)
+    json.dump(jsondata, classes_file, ensure_ascii=False)
+    debug("Wrote jsondata to classes.json", 2)
+    classes_file.close()
+    debug("classes.json closed", 2)
+
+def add_user_to_class(classroom, id):
+    global people
+    people[str(id)] = classroom
+    record_people_file(people)
+
+def connect_request_markup(request):
+    markup = types.InlineKeyboardMarkup()
+    markup.row_width = 2
+    markup.add(
+        types.InlineKeyboardButton("❌ Отклонить", callback_data="decline_connect_" + request),
+        types.InlineKeyboardButton("✅ Принять", callback_data="accept_connect_" + request)
+    )
+    return markup
+
 # set up
 debug("Started setup")
 config.check_token()
@@ -257,6 +298,15 @@ structure example:
 hw_requests = {
     "uuid4": [
         "classroom", "lesson", "task"
+    ]
+}
+'''
+
+connect_requests = {}
+'''
+connect_requests = {
+    "uuid4": [
+        "user_id", "classroom"
     ]
 }
 '''
@@ -370,19 +420,38 @@ def handle_homework_report(message):
             request = create_hw_request(user_class, hw[0], hw[1])
             for i in range(0, len(get_admins_of_class(user_class))):
                 bot.send_message(get_admins_of_class(user_class)[i], "Запрос на добавление ДЗ:\n\n" + get_hw_request_by_uuid(request)[1] + ": " + get_hw_request_by_uuid(request)[2], reply_markup=homework_request_markup(request))
-    
+
+@bot.message_handler(commands=["connect"])
+def handle_connect_request(message):
+    classroom = util.extract_arguments(message.text)
+    if classroom == "":
+        text = "Команда /connect используется для подключения к классу.\n\nИспользование:\n/connect [id класса]"
+        bot.reply_to(message, text)
+        return
+    if get_class_by_id(message.from_user.id) == "":
+        request = create_connect_request(classroom, message.from_user.id)
+
+
 # callback handlers
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
     # call.data
-    if get_class_by_admin_id(call.from_user.id) != None and call.data == "clear_homework":
+    if call.data == "clear_homework":
         clear_homework_by_admin_id(call.from_user.id)
         bot.answer_callback_query(call.id, "✅ ДЗ очищено!")
-    if call.data.startswith("accept_"):
-        request_uuid = call.data.replace("accept_", "")
+    if call.data.startswith("accept_homework_"):
+        request_uuid = call.data.replace("accept_homework_", "")
         request = get_hw_request_by_uuid(request_uuid)
         set_current_homework_by_class(get_class_by_admin_id(call.from_user.id), request[1], request[2])
-        bot.answer_callback_query(call.id, "✅ Запрос принят!")
+        close_hw_request(request_uuid)
+        bot.answer_callback_query(call.id, '✅ Запрос на изменение ДЗ принят!')
+    if call.data.startswith("decline_homework_"):
+        request_uuid = call.data.replace("decline_homework_", "")
+        close_connect_request(request_uuid)
+        bot.answer_callback_query(call.id, "✅ Запрос на изменение ДЗ отклонён!")
+    if call.data.startswith("accept_connect_"):
+        request_uuid = call.data.replace("accept_connect_", "")
+        request = get_connect_request(request_uuid)
 
 # main loop
 for i in range(len(config.admins)):
