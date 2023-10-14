@@ -253,6 +253,19 @@ def connect_request_markup(request):
     )
     return markup
 
+def leave_class_markup():
+    markup = types.InlineKeyboardMarkup()
+    markup.row_width = 1
+    markup.add(
+        types.InlineKeyboardButton("🚪 Выйти", callback_data="leave_class")
+    )
+    return markup
+
+def delete_user_from_class(id):
+    global people
+    del people[str(id)]
+    record_people_file(people)
+
 # set up
 debug("Started setup")
 config.check_token()
@@ -444,6 +457,10 @@ def handle_connect_request(message):
     else:
         bot.reply_to(message, "Вы уже состоите в классе")
 
+@bot.message_handler(commands=["leave"])
+def handle_leave_class(message):
+    bot.send_message(message.from_user.id, "Вы уверены, что хотите отключиться от класса?", reply_markup=leave_class_markup())
+
 # callback handlers
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
@@ -468,8 +485,17 @@ def callback_query(call):
             return
         request = get_connect_request(request_uuid)
         add_user_to_class(request[1], request[0])
+        bot.send_message(request[0], "✅ Ваш запрос на добавление в класс принят!")
         close_connect_request(request_uuid)
         bot.answer_callback_query(call.id, "✅ Запрос на добавление в класс принят!")
+    if call.data.startswith("decline_connect_"):
+        request_uuid = call.data.replace("decline_connect_", "")
+        bot.send_message(get_connect_request(request_uuid)[0], "❌ Ваш запрос на добавление в класс отклонён")
+        close_connect_request(request_uuid)
+        bot.answer_callback_query(call.id, "✅ Запрос на изменение ДЗ отклонён!")
+    if call.data == "leave_class":
+        delete_user_from_class(call.from_user.id)
+        bot.answer_callback_query(call.id, "🚪 Вы вышли из класса!")
 
 # main loop
 for i in range(len(config.admins)):
