@@ -338,7 +338,7 @@ def default_query(inline_query):
             answers.append(types.InlineQueryResultArticle('4', 'ДЗ на завтра', types.InputTextMessageContent(get_formatted_day_homework_by_class(get_class_by_id(inline_query.from_user.id), datetime.now().weekday() + 1))))
         bot.answer_inline_query(inline_query.id, answers, cache_time=0)
     except Exception as e:
-        print("exception in inline_handler: " + e)
+        print("exception in inline_handler: " + str(e))
 
 @bot.inline_handler(lambda query: len(query.query) == 1 and is_int(query.query))
 def default_query(inline_query):
@@ -377,7 +377,7 @@ def default_query(inline_query):
             answers.append(types.InlineQueryResultArticle('3', result, types.InputTextMessageContent(get_formatted_day_homework_by_class(get_class_by_id(inline_query.from_user.id), num - 1))))
         bot.answer_inline_query(inline_query.id, answers, cache_time=0)
     except Exception as e:
-        print("exception in inline_handler: " + e)
+        print("exception in inline_handler: " + str(e))
 
 @bot.inline_handler(lambda query: query.query.startswith("!"))
 def default_query(inline_query):
@@ -393,7 +393,7 @@ def default_query(inline_query):
             answers.append(types.InlineQueryResultArticle('2', 'Homework list for user class today', types.InputTextMessageContent(get_formatted_homework_by_id(inline_query.from_user.id))))
         bot.answer_inline_query(inline_query.id, answers, cache_time=0)
     except Exception as e:
-        print("exception in inline_handler: " + e)
+        print("exception in inline_handler: " + str(e))
 
 # direct message handlers
 @bot.message_handler(func=lambda message: message.text.startswith("!"))
