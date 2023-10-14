@@ -219,6 +219,7 @@ def create_connect_request(classroom, id):
     global connect_requests
     uid = str(uuid4())
     connect_requests[uid] = [id, classroom]
+    return uid
 
 def get_connect_request(uid):
     global connect_requests
@@ -229,14 +230,14 @@ def close_connect_request(uid):
     del connect_requests[uid]
 
 def record_people_file(jsondata):
-    debug("Writing classes file...")
-    classes_file = open("clssses.json", "r+", encoding="utf-8")
-    debug("Opened classes.json as homework file", 2)
-    classes_file.truncate(0)
-    json.dump(jsondata, classes_file, ensure_ascii=False)
-    debug("Wrote jsondata to classes.json", 2)
-    classes_file.close()
-    debug("classes.json closed", 2)
+    debug("Writing people file...")
+    people_file = open("people.json", "r+", encoding="utf-8")
+    debug("Opened people.json as homework file", 2)
+    people_file.truncate(0)
+    json.dump(jsondata, people_file, ensure_ascii=False)
+    debug("Wrote jsondata to people.json", 2)
+    people_file.close()
+    debug("people.json closed", 2)
 
 def add_user_to_class(classroom, id):
     global people
@@ -428,9 +429,16 @@ def handle_connect_request(message):
         text = "Команда /connect используется для подключения к классу.\n\nИспользование:\n/connect [id класса]"
         bot.reply_to(message, text)
         return
-    if get_class_by_id(message.from_user.id) == "":
-        request = create_connect_request(classroom, message.from_user.id)
-
+    if get_class_by_id(message.from_user.id) == "None":
+        if not classroom in list(classes.keys()):
+            bot.reply_to(message, "Неверный ID класса!")
+            return
+        request = create_connect_request(classroom, str(message.from_user.id))
+        bot.reply_to(message, "Запрос на добавление в класс отправлен администраторам класса")
+        for i in range(0, len(get_admins_of_class(classroom))):
+            bot.send_message(get_admins_of_class(classroom)[i], "Запрос на добавление в класс:\n\nПользователь @" + message.from_user.username + " (" + str(message.from_user.id) + ") хочет добавиться в ваш класс.", reply_markup=connect_request_markup(request))
+    else:
+        bot.reply_to(message, "Вы уже состоите в классе")
 
 # callback handlers
 @bot.callback_query_handler(func=lambda call: True)
@@ -451,7 +459,13 @@ def callback_query(call):
         bot.answer_callback_query(call.id, "✅ Запрос на изменение ДЗ отклонён!")
     if call.data.startswith("accept_connect_"):
         request_uuid = call.data.replace("accept_connect_", "")
+        if not request_uuid in list(connect_requests.keys()):
+            bot.answer_callback_query(call.id, "❌ Запрос не существует")
+            return
         request = get_connect_request(request_uuid)
+        add_user_to_class(request[1], request[0])
+        close_connect_request(request_uuid)
+        bot.answer_callback_query(call.id, "✅ Запрос на добавление в класс принят!")
 
 # main loop
 for i in range(len(config.admins)):
