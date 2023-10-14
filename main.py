@@ -494,6 +494,12 @@ def callback_query(call):
         close_connect_request(request_uuid)
         bot.answer_callback_query(call.id, "✅ Запрос на изменение ДЗ отклонён!")
     if call.data == "leave_class":
+        if get_class_by_admin_id(call.from_user.id) != "None":
+            bot.send_message(call.from_user.id, "❌ Вы не можете выйти из класса, так как являетесь его админом!")
+            return
+        if not str(call.from_user.id) in list(people.keys()):
+            bot.send_message(call.from_user.id, "❌ Вы не состоите ни в одном из классов!")
+            return
         delete_user_from_class(call.from_user.id)
         bot.answer_callback_query(call.id, "🚪 Вы вышли из класса!")
 
