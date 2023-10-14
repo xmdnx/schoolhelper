@@ -8,12 +8,11 @@ def debugprint(text, level=1):
 # premium settings
 use_twav = True  # set True to use TWAV as premium payment
 premium_price = 1  # set premium price
-force_premium = [841914494, 1550769086, 1017000487]
+force_premium = []
 
 # global settings
-admins = [841914494]
+admins = []
 debug = True
-datafile = "data.json"
 
 # telegram bot settings
 token = ""  # set your Telegram bot token here
