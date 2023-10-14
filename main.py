@@ -414,10 +414,13 @@ def handle_admin_command(message):
 
 @bot.message_handler(commands=["homework"])
 def handle_homework(message):
-    if get_class_by_admin_id(message.from_user.id) == "":
-        bot.reply_to(message, "Вы не являетесь админом ни одного из зарегистрированных классов!")
+    if get_class_by_id(message.from_user.id) == "":
+        bot.reply_to(message, "Вы не состоите ни в одном из классов!")
         return
-    bot.send_message(message.from_user.id, get_formatted_homework_by_id(message.from_user.id), reply_markup=all_homework_markup())
+    if get_class_by_admin_id(message.from_user.id) != "":
+        bot.send_message(message.from_user.id, get_formatted_homework_by_id(message.from_user.id), reply_markup=all_homework_markup())
+    else:
+        bot.send_message(message.from_user.id, get_formatted_homework_by_id(message.from_user.id))
 
 @bot.message_handler(commands=["add"])
 def handle_homework_report(message):
@@ -466,8 +469,11 @@ def handle_leave_class(message):
 def callback_query(call):
     # call.data
     if call.data == "clear_homework":
-        clear_homework_by_admin_id(call.from_user.id)
-        bot.answer_callback_query(call.id, "✅ ДЗ очищено!")
+        if get_class_by_admin_id(call.from_user.id) != "":
+            clear_homework_by_admin_id(call.from_user.id)
+            bot.answer_callback_query(call.id, "✅ ДЗ очищено!")
+        else:
+            bot.answer_callback_query(call.id, "❌ Вы не можете очистить ДЗ!")
     if call.data.startswith("accept_homework_"):
         request_uuid = call.data.replace("accept_homework_", "")
         request = get_hw_request_by_uuid(request_uuid)
