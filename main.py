@@ -421,6 +421,10 @@ def handle_homework_report(message):
             request = create_hw_request(user_class, hw[0], hw[1])
             for i in range(0, len(get_admins_of_class(user_class))):
                 bot.send_message(get_admins_of_class(user_class)[i], "Запрос на добавление ДЗ:\n\n" + get_hw_request_by_uuid(request)[1] + ": " + get_hw_request_by_uuid(request)[2], reply_markup=homework_request_markup(request))
+    else:
+        hw = format_homework(get_class_by_id(message.from_user.id), message.text)
+        set_current_homework_by_id(message.from_user.id, hw[0], hw[1])
+        bot.reply_to(message, "✅ ДЗ установлено:\n\n" + hw[0] + ": " + hw[1])
 
 @bot.message_handler(commands=["connect"])
 def handle_connect_request(message):
