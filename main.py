@@ -189,8 +189,8 @@ def homework_request_markup(request):
     markup = types.InlineKeyboardMarkup()
     markup.row_width = 2
     markup.add(
-        types.InlineKeyboardButton("❌ Отклонить", callback_data="decline_" + request),
-        types.InlineKeyboardButton("✅ Принять", callback_data="accept_" + request)
+        types.InlineKeyboardButton("❌ Отклонить", callback_data="decline_homework_" + request),
+        types.InlineKeyboardButton("✅ Принять", callback_data="accept_homework_" + request)
     )
     return markup
 
@@ -205,7 +205,7 @@ def get_hw_request_by_uuid(uid):
     global hw_requests
     return hw_requests[uid]
 
-def new_hw_request(classroom, lesson, task):
+def create_hw_request(classroom, lesson, task):
     global hw_requests
     uid = str(uuid4())
     hw_requests[uid] = [classroom, lesson, task]
@@ -355,10 +355,10 @@ def handle_homework(message):
         return
     bot.send_message(message.from_user.id, get_formatted_homework_by_id(message.from_user.id), reply_markup=all_homework_markup())
 
-@bot.message_handler(func=lambda message: message.text.startswith("/add"))
+@bot.message_handler(commands=["add"])
 def handle_homework_report(message):
     debug("recieved /add")
-    report_text = message.text.replace("/add ", "")
+    report_text = util.extract_arguments(message.text)
     if report_text == "":
         text = "Команда /add используется для добавления недобавленного или неправильного ДЗ.\n\nИспользование:\n/add [предмет] [задание]"
         bot.reply_to(message, text)
@@ -367,8 +367,8 @@ def handle_homework_report(message):
         user_class = get_class_by_id(message.from_user.id)
         hw = format_homework(user_class, message.text)
         if (hw != []):
+            request = create_hw_request(user_class, hw[0], hw[1])
             for i in range(0, len(get_admins_of_class(user_class))):
-                request = new_hw_request(user_class, hw[0], hw[1])
                 bot.send_message(get_admins_of_class(user_class)[i], "Запрос на добавление ДЗ:\n\n" + get_hw_request_by_uuid(request)[1] + ": " + get_hw_request_by_uuid(request)[2], reply_markup=homework_request_markup(request))
     
 # callback handlers
