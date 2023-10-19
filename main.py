@@ -154,9 +154,13 @@ def get_formatted_day_homework_by_class(classroom, weekday = datetime.now().week
         case 4:
             result += "пятницу"
     result += "\n\n"
+    lessons_with_tasks = []
     for i in range(0, lessons):
-        if timetable[i] in list(class_homework.keys()):
-            result += timetable[i] + ": " + class_homework[timetable[i]] + "\n"
+        if timetable[i] in list(class_homework.keys()) and not timetable[i] in lessons_with_tasks:
+            # result += timetable[i] + ": " + class_homework[timetable[i]] + "\n"
+            lessons_with_tasks.append(timetable[i])
+    for i in range(len(lessons_with_tasks)):
+        result += lessons_with_tasks[i] + ": " + class_homework(lessons_with_tasks[i]) + "\n"
     return result
 
 def clear_homework_by_admin_id(id):
