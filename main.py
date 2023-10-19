@@ -343,7 +343,7 @@ def default_query(inline_query):
         if datetime.now().weekday() in range(0, get_workdays_by_class(get_class_by_id(inline_query.from_user.id))):
             answers.append(types.InlineQueryResultArticle('1', 'Расписание на сегодня', types.InputTextMessageContent(get_timetable_by_class(get_class_by_id(inline_query.from_user.id)))))
             answers.append(types.InlineQueryResultArticle('3', 'ДЗ на сегодня', types.InputTextMessageContent(get_formatted_day_homework_by_class(get_class_by_id(inline_query.from_user.id)))))
-        if datetime.now().weekday() + 1 in range(0, get_workdays_by_class(get_class_by_id(inline_query.from_user.id))):
+        if datetime.now().weekday() + 1 in range(0, get_workdays_by_class(get_class_by_id(inline_query.from_user.id)) + 1):
             answers.append(types.InlineQueryResultArticle('2', 'Расписание на завтра', types.InputTextMessageContent(get_timetable_by_class(get_class_by_id(inline_query.from_user.id), datetime.now().weekday() + 1))))
             answers.append(types.InlineQueryResultArticle('4', 'ДЗ на завтра', types.InputTextMessageContent(get_formatted_day_homework_by_class(get_class_by_id(inline_query.from_user.id), datetime.now().weekday() + 1))))
         bot.answer_inline_query(inline_query.id, answers, cache_time=0)
@@ -357,7 +357,7 @@ def default_query(inline_query):
         answers = []
         if (num in range(1, get_workdays_by_class(get_class_by_id(inline_query.from_user.id)) + 1)) and (datetime.now().weekday() in range(0, get_workdays_by_class(get_class_by_id(inline_query.from_user.id)) + 1)):
             answers.append(types.InlineQueryResultArticle('1', str(num) + ' урок сегодня', types.InputTextMessageContent(get_array_timetable_by_class(get_class_by_id(inline_query.from_user.id))[num - 1])))
-        if (num in range(1, get_workdays_by_class(get_class_by_id(inline_query.from_user.id)) + 1)):
+        if (num in range(1, get_workdays_by_class(get_class_by_id(inline_query.from_user.id)) + 2)):
             result = "Расписание на "
             match num:
                 case 1:
