@@ -101,6 +101,16 @@ def set_current_homework_by_class(classroom, lesson, task):
     homework = full_current_json
     record_homework_file(full_current_json)
 
+def delete_task(classroom, text):
+    global homework
+    full_current_json = homework
+    del full_current_json[classroom][text]
+    homework = full_current_json
+    record_homework_file(full_current_json)
+
+def is_class_admin(id):
+    return get_class_by_admin_id(id) != ""
+
 def format_homework(classroom, text):
     global classes
     lessons = create_lesson_list_by_class(classroom)
@@ -468,6 +478,15 @@ def handle_leave_class(message):
 def handle_exec(message):
     if message.from_user.id in config.admins:
         exec(util.extract_arguments(message.text))
+
+@bot.message_handler(commands=["del"])
+def handle_del(message):
+    if is_class_admin(message.from_user.id):
+        hw = format_homework(get_class_by_admin_id(message.from_user.id), util.extract_arguments(message.text))[0]
+        delete_task(get_class_by_admin_id(message.from_user.id), hw)
+        bot.send_message(message.from_user.id, "ДЗ по предмету " + hw + " удалено!")
+    else:
+        bot.send_message("Вы не являетесь админом ни одного из классов!")
 
 # callback handlers
 @bot.callback_query_handler(func=lambda call: True)
